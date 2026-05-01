@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK 2 Flashcards Filterable</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #121212;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Navigasi Filter */
+        .filter-menu {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 450px;
+        }
+
+        .filter-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .filter-btn:hover { background: #555; }
+        .filter-btn.active {
+            background: #d32f2f;
+            box-shadow: 0 0 10px rgba(211, 47, 47, 0.5);
+        }
+
+        /* Container 3:4 */
+        #card-container {
+            text-align: center;
+            background: white;
+            width: 450px; 
+            height: 600px; 
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .category-label {
+            font-size: 0.9rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .hanzi {
+            font-size: 88px;
+            color: #d32f2f;
+            margin: 0;
+            font-weight: bold;
+        }
+
+        .pinyin {
+            font-size: 26px;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .translations {
+            border-top: 2px solid #f5f5f5;
+            padding: 20px 10px;
+            background: #fafafa;
+            border-radius: 0 0 20px 20px;
+            min-height: 120px;
+        }
+
+        .lang-item {
+            display: flex;
+            font-size: 16px;
+            margin-bottom: 6px;
+            color: #333;
+            text-align: left;
+            padding-left: 30px;
+        }
+
+        .lang-code {
+            font-weight: bold;
+            color: #d32f2f;
+            width: 40px;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="filter-menu">
+    <button class="filter-btn active" onclick="setFilter('ALL', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('Verb', this)">Verbs</button>
+    <button class="filter-btn" onclick="setFilter('Noun', this)">Nouns</button>
+    <button class="filter-btn" onclick="setFilter('Adjective', this)">Adjectives</button>
+    <button class="filter-btn" onclick="setFilter('Adverb', this)">Adverbs</button>
+    <button class="filter-btn" onclick="setFilter('Other', this)">Other</button>
+</div>
+
+<div id="card-container" onclick="showNextCard()">
+    <div id="category" class="category-label">— CATEGORY —</div>
+    
+    <div class="main-content">
+        <div id="hanzi" class="hanzi">...</div>
+        <div id="pinyin" class="pinyin">...</div>
+    </div>
+
+    <div id="translations" class="translations" onmouseenter="speak()">
+        <!-- Terjemahan -->
+    </div>
+    
+    <div class="hint">CLICK TO NEXT • HOVER FOR SOUND</div>
+</div>
+
+<script>
+    const vocabulary = [
+        {hz: "准备", py: "zhǔnbèi", en: "To prepare", jp: "準備する", vn: "Chuẩn bị", cat: "Verb"},
+        {hz: "帮助", py: "bāngzhù", en: "To help", jp: "助ける", vn: "Giúp đỡ", cat: "Verb"},
+        {hz: "介绍", py: "jièshào", en: "To introduce", jp: "紹介する", vn: "Giới thiệu", cat: "Verb"},
+        {hz: "跳舞", py: "tiàowǔ", en: "To dance", jp: "踊る", vn: "Nhảy múa", cat: "Verb"},
+        {hz: "游泳", py: "yóuyǒng", en: "To swim", jp: "泳ぐ", vn: "Bơi lội", cat: "Verb"},
+        {hz: "唱歌", py: "chànggē", en: "To sing", jp: "歌う", vn: "Hát", cat: "Verb"},
+        
+        {hz: "机场", py: "jīchǎng", en: "Airport", jp: "空港", vn: "Sân bay", cat: "Noun"},
+        {hz: "教室", py: "jiàoshì", en: "Classroom", jp: "教室", vn: "Lớp học", cat: "Noun"},
+        {hz: "服务员", py: "fúwùyuán", en: "Waiter", jp: "店員", vn: "Người phục vụ", cat: "Noun"},
+        {hz: "西瓜", py: "xīguā", en: "Watermelon", jp: "スイカ", vn: "Dưa hấu", cat: "Noun"},
+        {hz: "手机", py: "shǒujī", en: "Mobile phone", jp: "携帯", vn: "Điện thoại", cat: "Noun"},
+        {hz: "报纸", py: "bàozhǐ", en: "Newspaper", jp: "新聞", vn: "Báo", cat: "Noun"},
+        
+        {hz: "便宜", py: "piányi", en: "Cheap", jp: "安い", vn: "Rẻ", cat: "Adjective"},
+        {hz: "贵", py: "guì", en: "Expensive", jp: "高い", vn: "Đắt", cat: "Adjective"},
+        {hz: "快乐", py: "kuàilè", en: "Happy", jp: "楽しい", vn: "Vui vẻ", cat: "Adjective"},
+        {hz: "漂亮", py: "piàoliang", en: "Beautiful", jp: "きれい", vn: "Xinh đẹp", cat: "Adjective"},
+        {hz: "新", py: "xīn", en: "New", jp: "新しい", vn: "Mới", cat: "Adjective"},
+        
+        {hz: "非常", py: "fēicháng", en: "Extremely", jp: "非常に", vn: "Rất", cat: "Adverb"},
+        {hz: "已经", py: "yǐjīng", en: "Already", jp: "すでに", vn: "Đã", cat: "Adverb"},
+        {hz: "最", py: "zuì", en: "Most", jp: "もっとも", vn: "Nhất", cat: "Adverb"},
+        {hz: "真", py: "zhēn", en: "Really", jp: "本当に", vn: "Thật sự", cat: "Adverb"},
+        
+        {hz: "为什么", py: "wèishénme", en: "Why", jp: "なぜ", vn: "Tại sao", cat: "Other"},
+        {hz: "因为", py: "yīnwèi", en: "Because", jp: "なぜなら", vn: "Bởi vì", cat: "Other"},
+        {hz: "所以", py: "suǒyǐ", en: "Therefore", jp: "だから", vn: "Cho nên", cat: "Other"},
+        {hz: "但是", py: "dànshì", en: "But", jp: "しかし", vn: "Nhưng", cat: "Other"}
+    ];
+
+    let currentFilter = 'ALL';
+    let filteredList = [];
+    let currentIndex = 0;
+
+    function setFilter(category, btnElement) {
+        currentFilter = category;
+        
+        // Update UI Button
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+        
+        // Filter and Shuffle
+        if (category === 'ALL') {
+            filteredList = [...vocabulary];
+        } else {
+            filteredList = vocabulary.filter(item => item.cat === category);
+        }
+        
+        filteredList.sort(() => Math.random() - 0.5);
+        currentIndex = 0;
+        showNextCard();
+    }
+
+    function showNextCard() {
+        if (filteredList.length === 0) return;
+        if (currentIndex >= filteredList.length) currentIndex = 0;
+        
+        const card = filteredList[currentIndex];
+        document.getElementById('category').innerText = `— ${card.cat} —`;
+        document.getElementById('hanzi').innerText = card.hz;
+        document.getElementById('pinyin').innerText = card.py;
+        document.getElementById('translations').innerHTML = `
+            <div class="lang-item"><div class="lang-code">EN</div><div>${card.en}</div></div>
+            <div class="lang-item"><div class="lang-code">JP</div><div>${card.jp}</div></div>
+            <div class="lang-item"><div class="lang-code">VN</div><div>${card.vn}</div></div>
+        `;
+        
+        currentIndex++;
+    }
+
+    function speak() {
+        window.speechSynthesis.cancel();
+        const text = document.getElementById('hanzi').innerText;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // Init
+    setFilter('ALL', document.querySelector('.filter-btn'));
+</script>
+
+</body>
+</html>
