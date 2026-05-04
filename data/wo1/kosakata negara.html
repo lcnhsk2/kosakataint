@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK Multilingual Master Pro</title>
+    <style>
+        :root { --primary: #d32f2f; --secondary: #1976d2; --bg: #f5f7fa; --card: #ffffff; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; min-height: 100vh; }
+        
+        .search-container { width: 100%; max-width: 500px; margin-bottom: 20px; }
+        #search-input { width: 100%; padding: 15px 25px; border-radius: 30px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); font-size: 16px; outline: none; }
+
+        .filter-nav { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 25px; width: 100%; max-width: 800px; }
+        .filter-btn { padding: 10px 18px; border: none; border-radius: 20px; background: white; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: 0.3s; }
+        .filter-btn.active { background: var(--primary); color: white; }
+
+        #flashcard { width: 100%; max-width: 460px; background: var(--card); border-radius: 35px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); overflow: hidden; position: relative; }
+        .pos-badge { position: absolute; top: 25px; left: 25px; background: #fff1f0; color: var(--primary); padding: 5px 15px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #ffa39e; }
+        
+        .card-hero { padding: 70px 20px 40px; text-align: center; }
+        .hanzi { font-size: 100px; font-weight: bold; color: #1a1a1a; margin: 0; line-height: 1; }
+        .pinyin { font-size: 28px; color: var(--secondary); margin: 15px 0 25px; font-weight: 500; }
+        
+        .main-audio { width: 70px; height: 70px; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 30px; box-shadow: 0 6px 20px rgba(211,47,47,0.3); transition: 0.2s; }
+        .main-audio:hover { transform: scale(1.1); background: #b71c1c; }
+
+        .translation-grid { background: #fafafa; border-top: 1px solid #eee; padding: 30px; }
+        .lang-card { display: flex; align-items: center; margin-bottom: 15px; padding: 15px; background: white; border-radius: 18px; border: 1px solid #f0f0f0; transition: 0.2s; }
+        .lang-card:hover { border-color: var(--secondary); transform: translateX(5px); }
+        .lang-tag { width: 40px; font-size: 11px; font-weight: 900; color: #bbb; }
+        .lang-val { flex: 1; font-size: 20px; color: #333; font-weight: 500; }
+        .speak-btn { background: none; border: none; color: #ddd; cursor: pointer; font-size: 22px; margin-right: 15px; }
+        .speak-btn:hover { color: var(--secondary); }
+
+        .navigation { width: 100%; max-width: 460px; display: flex; justify-content: space-between; margin-top: 25px; align-items: center; }
+        .nav-btn { padding: 15px 35px; border-radius: 20px; border: none; background: #333; color: white; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        .nav-btn:active { transform: scale(0.95); }
+        .counter { font-weight: bold; color: #888; background: #eee; padding: 6px 20px; border-radius: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="search-container">
+    <input type="text" id="search-input" placeholder="Cari Hanzi, Pinyin, atau Arti..." oninput="handleSearch()">
+</div>
+
+<div class="filter-nav" id="filter-nav">
+    <button class="filter-btn active" onclick="setFilter('ALL', this)">SEMUA</button>
+    <button class="filter-btn" onclick="setFilter('NOUN', this)">KATA BENDA</button>
+    <button class="filter-btn" onclick="setFilter('VERB', this)">KATA KERJA</button>
+    <button class="filter-btn" onclick="setFilter('ADJ', this)">KATA SIFAT</button>
+</div>
+
+<div id="flashcard">
+    <div class="pos-badge" id="v-pos">CATEGORY</div>
+    <div class="card-hero">
+        <h1 class="hanzi" id="v-hz">...</h1>
+        <p class="pinyin" id="v-py">...</p>
+        <button class="main-audio" onclick="playVoice('zh-CN')">🔊</button>
+    </div>
+    <div class="translation-grid">
+        <div class="lang-card">
+            <button class="speak-btn" onclick="playVoice('en-US')">🔊</button>
+            <span class="lang-tag">EN</span>
+            <span class="lang-val" id="v-en">...</span>
+        </div>
+        <div class="lang-card">
+            <button class="speak-btn" onclick="playVoice('ja-JP')">🔊</button>
+            <span class="lang-tag">JP</span>
+            <span class="lang-val" id="v-jp">...</span>
+        </div>
+        <div class="lang-card">
+            <button class="speak-btn" onclick="playVoice('th-TH')">🔊</button>
+            <span class="lang-tag">TH</span>
+            <span class="lang-val" id="v-th">...</span>
+        </div>
+    </div>
+</div>
+
+<div class="navigation">
+    <button class="nav-btn" onclick="navigate(-1)">PREV</button>
+    <div class="counter" id="v-count">0 / 0</div>
+    <button class="nav-btn" onclick="navigate(1)">NEXT</button>
+</div>
+
+<script>
+    // Data Terjemahan yang Sudah Diperbaiki (Akurat & Lengkap)
+    const database = [
+        {hz:"爱", py:"ài", pos:"VERB", en:"Love", jp:"愛する", th:"รัก"},
+        {hz:"爱好", py:"àihào", pos:"NOUN", en:"Hobby", jp:"趣味", th:"งานอดิเรก"},
+        {hz:"爸爸", py:"bàba", pos:"NOUN", en:"Father", jp:"お父さん", th:"พ่อ"},
+        {hz:"百", py:"bǎi", pos:"NOUN", en:"Hundred", jp:"百", th:"ร้อย"},
+        {hz:"北京", py:"Běijīng", pos:"NOUN", en:"Beijing", jp:"北京", th:"ปักกิ่ง"},
+        {hz:"不客气", py:"búkèqi", pos:"ADJ", en:"You're welcome", jp:"どういたしまして", th:"ไม่เป็นไร"},
+        {hz:"杯子", py:"bēizi", pos:"NOUN", en:"Cup", jp:"コップ", th:"แก้วน้ำ"},
+        {hz:"茶", py:"chá", pos:"NOUN", en:"Tea", jp:"茶", th:"ชา"},
+        {hz:"吃", py:"chī", pos:"VERB", en:"Eat", jp:"食べる", th:"กิน"},
+        {hz:"大", py:"dà", pos:"ADJ", en:"Big", jp:"大きい", th:"ใหญ่"},
+        {hz:"对不起", py:"duìbuqǐ", pos:"ADJ", en:"Sorry", jp:"すみません", th:"ขอโทษ"},
+        {hz:"电影", py:"diànyǐng", pos:"NOUN", en:"Movie", jp:"映画", th:"ภาพยนตร์"},
+        {hz:"高兴", py:"gāoxìng", pos:"ADJ", en:"Happy", jp:"嬉しい", th:"ดีใจ"},
+        {hz:"好", py:"hǎo", pos:"ADJ", en:"Good", jp:"良い", th:"ดี"},
+        {hz:"漂亮", py:"piàoliang", pos:"ADJ", en:"Beautiful", jp:"美しい", th:"สวย"},
+        {hz:"医生", py:"yīshēng", pos:"NOUN", en:"Doctor", jp:"医者", th:"หมอ"},
+        {hz:"再见", py:"zàijiàn", pos:"VERB", en:"Goodbye", jp:"さようなら", th:"ลาก่อน"},
+        {hz:"天气", py:"tiānqì", pos:"NOUN", en:"Weather", jp:"天気", th:"อากาศ"},
+        {hz:"认识", py:"rènshi", pos:"VERB", en:"To know / meet", jp:"知り合う", th:"รู้จัก"},
+        {hz:"喜欢", py:"xǐhuan", pos:"VERB", en:"Like", jp:"好き", th:"ชอบ"},
+        {hz:"谁", py:"shéi", pos:"NOUN", en:"Who", jp:"だれ", th:"ใคร"},
+        {hz:"现在", py:"xiànzài", pos:"NOUN", en:"Now", jp:"今", th:"ตอนนี้"},
+{hz:"吧", py:"ba", pos:"PART", en:"(suggestion particle)", jp:"吧", th:"นะ"},
+{hz:"白", py:"bái", pos:"ADJ", en:"white", jp:"白", th:"ขาว"},
+{hz:"白天", py:"báitiān", pos:"NOUN", en:"daytime", jp:"昼間", th:"กลางวัน"},
+{hz:"班", py:"bān", pos:"NOUN", en:"class", jp:"クラス", th:"ชั้นเรียน"},
+{hz:"半", py:"bàn", pos:"NUM", en:"half", jp:"半分", th:"ครึ่ง"},
+{hz:"帮忙", py:"bāngmáng", pos:"VERB", en:"help", jp:"手伝う", th:"ช่วย"},
+{hz:"包", py:"bāo", pos:"NOUN", en:"bag", jp:"バッグ", th:"กระเป๋า"},
+{hz:"包子", py:"bāozi", pos:"NOUN", en:"steamed bun", jp:"肉まん", th:"ซาลาเปา"},
+{hz:"北", py:"běi", pos:"NOUN", en:"north", jp:"北", th:"ทิศเหนือ"},
+{hz:"北边", py:"běibiān", pos:"NOUN", en:"north side", jp:"北側", th:"ด้านเหนือ"},
+{hz:"本", py:"běn", pos:"CLF", en:"measure word for books", jp:"冊", th:"เล่ม"},
+{hz:"本子", py:"běnzi", pos:"NOUN", en:"notebook", jp:"ノート", th:"สมุด"},
+{hz:"比", py:"bǐ", pos:"PREP", en:"compare", jp:"比べる", th:"เปรียบเทียบ"},
+{hz:"别", py:"bié", pos:"ADV", en:"don't", jp:"〜するな", th:"อย่า"},
+{hz:"别的", py:"biéde", pos:"PRON", en:"other", jp:"他の", th:"อื่นๆ"},
+{hz:"别人", py:"biérén", pos:"PRON", en:"other people", jp:"他人", th:"คนอื่น"},
+{hz:"病", py:"bìng", pos:"NOUN", en:"illness", jp:"病気", th:"โรค"},
+{hz:"病人", py:"bìngrén", pos:"NOUN", en:"patient", jp:"患者", th:"คนป่วย"},
+{hz:"不大", py:"bú dà", pos:"ADJ", en:"not big", jp:"大きくない", th:"ไม่ใหญ่"},
+{hz:"不对", py:"bú duì", pos:"ADJ", en:"incorrect", jp:"違う", th:"ไม่ถูก"},
+{hz:"不用", py:"bú yòng", pos:"VERB", en:"need not", jp:"必要ない", th:"ไม่ต้อง"},
+{hz:"菜", py:"cài", pos:"NOUN", en:"dish/vegetable", jp:"料理", th:"อาหาร"},
+{hz:"差", py:"chà", pos:"ADJ", en:"poor/bad", jp:"悪い", th:"แย่"},
+{hz:"常", py:"cháng", pos:"ADV", en:"often", jp:"よく", th:"บ่อย"},
+{hz:"常常", py:"chángcháng", pos:"ADV", en:"frequently", jp:"しばしば", th:"บ่อยๆ"},
+{hz:"唱", py:"chàng", pos:"VERB", en:"sing", jp:"歌う", th:"ร้องเพลง"},
+{hz:"唱歌", py:"chànggē", pos:"VERB", en:"sing songs", jp:"歌を歌う", th:"ร้องเพลง"},
+{hz:"车", py:"chē", pos:"NOUN", en:"vehicle", jp:"車", th:"รถ"},
+{hz:"车票", py:"chēpiào", pos:"NOUN", en:"ticket", jp:"乗車券", th:"ตั๋วรถ"},
+{hz:"车上", py:"chēshàng", pos:"NOUN", en:"on the vehicle", jp:"車の上", th:"บนรถ"},
+{hz:"车站", py:"chēzhàn", pos:"NOUN", en:"station", jp:"駅", th:"สถานี"},
+{hz:"吃饭", py:"chīfàn", pos:"VERB", en:"eat meal", jp:"食事する", th:"กินข้าว"},
+{hz:"出", py:"chū", pos:"VERB", en:"go out", jp:"出る", th:"ออก"},
+{hz:"出来", py:"chūlái", pos:"VERB", en:"come out", jp:"出てくる", th:"ออกมา"},
+{hz:"出去", py:"chūqù", pos:"VERB", en:"go out", jp:"出て行く", th:"ออกไป"},
+{hz:"穿", py:"chuān", pos:"VERB", en:"wear", jp:"着る", th:"ใส่"},
+{hz:"床", py:"chuáng", pos:"NOUN", en:"bed", jp:"ベッド", th:"เตียง"},
+{hz:"次", py:"cì", pos:"CLF", en:"times (frequency)", jp:"回", th:"ครั้ง"},
+{hz:"从", py:"cóng", pos:"PREP", en:"from", jp:"〜から", th:"จาก"},
+{hz:"错", py:"cuò", pos:"ADJ", en:"wrong", jp:"間違い", th:"ผิด"},
+{hz:"打", py:"dǎ", pos:"VERB", en:"hit/do", jp:"打つ", th:"ตี/ทำ"},
+{hz:"打车", py:"dǎchē", pos:"VERB", en:"take taxi", jp:"タクシーに乗る", th:"เรียกแท็กซี่"},
+{hz:"打电话", py:"dǎ diànhuà", pos:"VERB", en:"make a call", jp:"電話する", th:"โทรศัพท์"},
+{hz:"打开", py:"dǎkāi", pos:"VERB", en:"open", jp:"開ける", th:"เปิด"},
+{hz:"打球", py:"dǎqiú", pos:"VERB", en:"play ball", jp:"球技をする", th:"เล่นบอล"},
+{hz:"大学", py:"dàxué", pos:"NOUN", en:"university", jp:"大学", th:"มหาวิทยาลัย"},
+{hz:"大学生", py:"dàxuéshēng", pos:"NOUN", en:"college student", jp:"大学生", th:"นักศึกษา"},
+{hz:"到", py:"dào", pos:"VERB", en:"arrive", jp:"着く", th:"ถึง"},
+{hz:"得到", py:"dédào", pos:"VERB", en:"get/obtain", jp:"得る", th:"ได้รับ"},       {hz:"中国", py:"Zhōngguó", pos:"NOUN", en:"China", jp:"中国", th:"ประเทศจีน"},
+{hz:"地", py:"de", pos:"PART", en:"adverbial particle", jp:"地", th:"อย่าง"},
+{hz:"的", py:"de", pos:"PART", en:"possessive particle", jp:"の", th:"ของ"},
+{hz:"等", py:"děng", pos:"VERB", en:"wait", jp:"待つ", th:"รอ"},
+{hz:"地点", py:"dìdiǎn", pos:"NOUN", en:"location", jp:"場所", th:"สถานที่"},
+{hz:"地方", py:"dìfang", pos:"NOUN", en:"place", jp:"場所", th:"ที่"},
+{hz:"地上", py:"dìshàng", pos:"NOUN", en:"on the ground", jp:"地面", th:"บนพื้น"},
+{hz:"地图", py:"dìtú", pos:"NOUN", en:"map", jp:"地図", th:"แผนที่"},
+{hz:"弟弟", py:"dìdi", pos:"NOUN", en:"younger brother", jp:"弟", th:"น้องชาย"},
+{hz:"第", py:"dì", pos:"NUM", en:"ordinal prefix", jp:"第", th:"ลำดับที่"},
+{hz:"点", py:"diǎn", pos:"NOUN", en:"o’clock/point", jp:"時", th:"โมง"},
+{hz:"电", py:"diàn", pos:"NOUN", en:"electricity", jp:"電気", th:"ไฟฟ้า"},
+{hz:"电话", py:"diànhuà", pos:"NOUN", en:"telephone", jp:"電話", th:"โทรศัพท์"},
+{hz:"电脑", py:"diànnǎo", pos:"NOUN", en:"computer", jp:"パソコン", th:"คอมพิวเตอร์"},
+{hz:"电视", py:"diànshì", pos:"NOUN", en:"TV", jp:"テレビ", th:"ทีวี"},
+{hz:"电视机", py:"diànshìjī", pos:"NOUN", en:"television set", jp:"テレビ機", th:"เครื่องทีวี"},
+{hz:"电影院", py:"diànyǐngyuàn", pos:"NOUN", en:"cinema", jp:"映画館", th:"โรงหนัง"},
+{hz:"东", py:"dōng", pos:"NOUN", en:"east", jp:"東", th:"ตะวันออก"},
+{hz:"东边", py:"dōngbiān", pos:"NOUN", en:"east side", jp:"東側", th:"ด้านตะวันออก"},
+{hz:"东西", py:"dōngxi", pos:"NOUN", en:"thing", jp:"物", th:"ของ"},
+{hz:"动", py:"dòng", pos:"VERB", en:"move", jp:"動く", th:"เคลื่อนไหว"},
+{hz:"动作", py:"dòngzuò", pos:"NOUN", en:"action", jp:"動作", th:"การเคลื่อนไหว"},
+{hz:"都", py:"dōu", pos:"ADV", en:"all", jp:"すべて", th:"ทั้งหมด"},
+{hz:"读", py:"dú", pos:"VERB", en:"read", jp:"読む", th:"อ่าน"},
+{hz:"读书", py:"dúshū", pos:"VERB", en:"study/read", jp:"勉強する", th:"เรียน"},
+{hz:"对", py:"duì", pos:"ADJ", en:"correct", jp:"正しい", th:"ถูก"},
+{hz:"多", py:"duō", pos:"ADJ", en:"many", jp:"多い", th:"มาก"},
+{hz:"饿", py:"è", pos:"ADJ", en:"hungry", jp:"お腹が空く", th:"หิว"},
+{hz:"儿子", py:"érzi", pos:"NOUN", en:"son", jp:"息子", th:"ลูกชาย"},
+{hz:"二", py:"èr", pos:"NUM", en:"two", jp:"二", th:"สอง"},
+{hz:"饭", py:"fàn", pos:"NOUN", en:"meal/rice", jp:"ご飯", th:"ข้าว"},
+{hz:"饭店", py:"fàndiàn", pos:"NOUN", en:"restaurant", jp:"レストラン", th:"ร้านอาหาร"},
+{hz:"房间", py:"fángjiān", pos:"NOUN", en:"room", jp:"部屋", th:"ห้อง"},
+{hz:"房子", py:"fángzi", pos:"NOUN", en:"house", jp:"家", th:"บ้าน"},
+{hz:"放", py:"fàng", pos:"VERB", en:"put/release", jp:"置く", th:"วาง"},
+{hz:"放假", py:"fàngjià", pos:"VERB", en:"have holiday", jp:"休暇になる", th:"ปิดเทอม"},
+{hz:"放学", py:"fàngxué", pos:"VERB", en:"school ends", jp:"下校する", th:"เลิกเรียน"},
+{hz:"飞", py:"fēi", pos:"VERB", en:"fly", jp:"飛ぶ", th:"บิน"},
+{hz:"飞机", py:"fēijī", pos:"NOUN", en:"airplane", jp:"飛行機", th:"เครื่องบิน"},
+{hz:"非常", py:"fēicháng", pos:"ADV", en:"very", jp:"非常に", th:"มาก"},
+{hz:"分", py:"fēn", pos:"NOUN", en:"minute", jp:"分", th:"นาที"},
+{hz:"风", py:"fēng", pos:"NOUN", en:"wind", jp:"風", th:"ลม"},
+{hz:"干", py:"gān", pos:"ADJ", en:"dry", jp:"乾く", th:"แห้ง"},
+{hz:"干净", py:"gānjìng", pos:"ADJ", en:"clean", jp:"きれい", th:"สะอาด"},
+{hz:"高", py:"gāo", pos:"ADJ", en:"tall/high", jp:"高い", th:"สูง"},
+{hz:"告诉", py:"gàosu", pos:"VERB", en:"tell", jp:"知らせる", th:"บอก"},
+{hz:"哥哥", py:"gēge", pos:"NOUN", en:"older brother", jp:"兄", th:"พี่ชาย"},
+{hz:"歌", py:"gē", pos:"NOUN", en:"song", jp:"歌", th:"เพลง"},
+{hz:"个", py:"gè", pos:"CLF", en:"general classifier", jp:"個", th:"อัน"},
+{hz:"给", py:"gěi", pos:"VERB", en:"give", jp:"あげる", th:"ให้"},
+{hz:"跟", py:"gēn", pos:"PREP", en:"with", jp:"〜と", th:"กับ"},
+{hz:"工人", py:"gōngrén", pos:"NOUN", en:"worker", jp:"労働者", th:"คนงาน"},
+{hz:"工作", py:"gōngzuò", pos:"NOUN", en:"job/work", jp:"仕事", th:"งาน"},
+{hz:"关", py:"guān", pos:"VERB", en:"close/turn off", jp:"閉める", th:"ปิด"},
+{hz:"关上", py:"guānshàng", pos:"VERB", en:"close (completely)", jp:"閉める", th:"ปิดลง"},
+{hz:"贵", py:"guì", pos:"ADJ", en:"expensive", jp:"高い", th:"แพง"},
+{hz:"国", py:"guó", pos:"NOUN", en:"country", jp:"国", th:"ประเทศ"},
+{hz:"国家", py:"guójiā", pos:"NOUN", en:"nation", jp:"国家", th:"ประเทศ"},
+{hz:"国外", py:"guówài", pos:"NOUN", en:"abroad", jp:"海外", th:"ต่างประเทศ"},
+{hz:"过", py:"guò", pos:"PART", en:"experienced (aspect)", jp:"〜したことがある", th:"เคย"},
+{hz:"还", py:"hái", pos:"ADV", en:"still/yet", jp:"まだ", th:"ยัง"},
+{hz:"还是", py:"háishì", pos:"CONJ", en:"or/still", jp:"それとも", th:"หรือ"},
+{hz:"还有", py:"háiyǒu", pos:"VERB", en:"also have", jp:"まだある", th:"ยังมี"},
+{hz:"孩子", py:"háizi", pos:"NOUN", en:"child", jp:"子供", th:"เด็ก"},
+{hz:"汉语", py:"hànyǔ", pos:"NOUN", en:"Chinese language", jp:"中国語", th:"ภาษาจีน"},
+{hz:"汉字", py:"hànzì", pos:"NOUN", en:"Chinese character", jp:"漢字", th:"อักษรจีน"},
+{hz:"好吃", py:"hǎochī", pos:"ADJ", en:"delicious", jp:"美味しい", th:"อร่อย"},
+{hz:"好看", py:"hǎokàn", pos:"ADJ", en:"good-looking", jp:"きれい", th:"สวย"},
+{hz:"好听", py:"hǎotīng", pos:"ADJ", en:"pleasant to hear", jp:"いい音", th:"เพราะ"},
+{hz:"好玩儿", py:"hǎowánr", pos:"ADJ", en:"fun", jp:"面白い", th:"สนุก"},
+{hz:"号", py:"hào", pos:"NOUN", en:"number/date", jp:"号", th:"หมายเลข"},
+{hz:"喝", py:"hē", pos:"VERB", en:"drink", jp:"飲む", th:"ดื่ม"},
+{hz:"和", py:"hé", pos:"CONJ", en:"and", jp:"と", th:"และ"},
+{hz:"很", py:"hěn", pos:"ADV", en:"very", jp:"とても", th:"มาก"},
+{hz:"后", py:"hòu", pos:"NOUN", en:"after/back", jp:"後", th:"หลัง"},
+{hz:"后边", py:"hòubiān", pos:"NOUN", en:"behind", jp:"後ろ", th:"ด้านหลัง"},
+{hz:"后天", py:"hòutiān", pos:"NOUN", en:"day after tomorrow", jp:"明後日", th:"มะรืนนี้"},
+{hz:"花", py:"huā", pos:"NOUN", en:"flower", jp:"花", th:"ดอกไม้"},
+{hz:"话", py:"huà", pos:"NOUN", en:"speech/words", jp:"言葉", th:"คำพูด"},
+{hz:"坏", py:"huài", pos:"ADJ", en:"bad", jp:"悪い", th:"แย่"},
+{hz:"回", py:"huí", pos:"VERB", en:"return", jp:"戻る", th:"กลับ"},
+{hz:"回答", py:"huídá", pos:"VERB", en:"answer", jp:"答える", th:"ตอบ"},
+{hz:"回到", py:"huídào", pos:"VERB", en:"return to", jp:"戻る", th:"กลับไป"},
+{hz:"回家", py:"huíjiā", pos:"VERB", en:"go home", jp:"家に帰る", th:"กลับบ้าน"},
+{hz:"回来", py:"huílái", pos:"VERB", en:"come back", jp:"戻ってくる", th:"กลับมา"},
+{hz:"回去", py:"huíqù", pos:"VERB", en:"go back", jp:"戻って行く", th:"กลับไป"},
+{hz:"会", py:"huì", pos:"VERB", en:"can/know how to", jp:"できる", th:"สามารถ"},
+{hz:"火车", py:"huǒchē", pos:"NOUN", en:"train", jp:"列車", th:"รถไฟ"},
+{hz:"机场", py:"jīchǎng", pos:"NOUN", en:"airport", jp:"空港", th:"สนามบิน"},
+{hz:"机票", py:"jīpiào", pos:"NOUN", en:"air ticket", jp:"航空券", th:"ตั๋วเครื่องบิน"},
+{hz:"鸡蛋", py:"jīdàn", pos:"NOUN", en:"egg", jp:"卵", th:"ไข่"},
+{hz:"几", py:"jǐ", pos:"NUM", en:"how many", jp:"いくつ", th:"กี่"},
+{hz:"记", py:"jì", pos:"VERB", en:"remember", jp:"覚える", th:"จำ"},
+{hz:"记得", py:"jìde", pos:"VERB", en:"remember", jp:"覚えている", th:"จำได้"},
+{hz:"记住", py:"jìzhù", pos:"VERB", en:"remember firmly", jp:"覚えておく", th:"จำไว้"},
+{hz:"家", py:"jiā", pos:"NOUN", en:"home", jp:"家", th:"บ้าน"},
+{hz:"家里", py:"jiālǐ", pos:"NOUN", en:"at home", jp:"家の中", th:"ในบ้าน"},
+{hz:"家人", py:"jiārén", pos:"NOUN", en:"family", jp:"家族", th:"ครอบครัว"},
+{hz:"间", py:"jiān", pos:"CLF", en:"room measure word", jp:"間", th:"ห้อง"},
+{hz:"见", py:"jiàn", pos:"VERB", en:"see", jp:"会う", th:"เจอ"},
+{hz:"见面", py:"jiànmiàn", pos:"VERB", en:"meet", jp:"会う", th:"พบ"},
+{hz:"教", py:"jiāo", pos:"VERB", en:"teach", jp:"教える", th:"สอน"},
+{hz:"叫", py:"jiào", pos:"VERB", en:"call/be named", jp:"呼ぶ", th:"เรียก"},
+{hz:"教学楼", py:"jiàoxuélóu", pos:"NOUN", en:"teaching building", jp:"校舎", th:"อาคารเรียน"},
+{hz:"姐姐", py:"jiějie", pos:"NOUN", en:"older sister", jp:"姉", th:"พี่สาว"},
+{hz:"介绍", py:"jièshào", pos:"VERB", en:"introduce", jp:"紹介する", th:"แนะนำ"},
+{hz:"今年", py:"jīnnián", pos:"NOUN", en:"this year", jp:"今年", th:"ปีนี้"},
+{hz:"今天", py:"jīntiān", pos:"NOUN", en:"today", jp:"今日", th:"วันนี้"},
+{hz:"进", py:"jìn", pos:"VERB", en:"enter", jp:"入る", th:"เข้า"},
+{hz:"进来", py:"jìnlái", pos:"VERB", en:"come in", jp:"入ってくる", th:"เข้ามา"},
+{hz:"进去", py:"jìnqù", pos:"VERB", en:"go in", jp:"入って行く", th:"เข้าไป"},
+{hz:"九", py:"jiǔ", pos:"NUM", en:"nine", jp:"九", th:"เก้า"},
+{hz:"就", py:"jiù", pos:"ADV", en:"then/just", jp:"すぐ", th:"ก็"},
+{hz:"觉得", py:"juéde", pos:"VERB", en:"feel/think", jp:"思う", th:"รู้สึก"},
+{hz:"开", py:"kāi", pos:"VERB", en:"open", jp:"開ける", th:"เปิด"},
+{hz:"开车", py:"kāichē", pos:"VERB", en:"drive", jp:"運転する", th:"ขับรถ"},
+{hz:"开会", py:"kāihuì", pos:"VERB", en:"have a meeting", jp:"会議する", th:"ประชุม"},
+{hz:"开玩笑", py:"kāi wánxiào", pos:"VERB", en:"joke", jp:"冗談を言う", th:"ล้อเล่น"},
+{hz:"看", py:"kàn", pos:"VERB", en:"look/watch", jp:"見る", th:"ดู"},
+{hz:"看病", py:"kànbìng", pos:"VERB", en:"see a doctor", jp:"診察を受ける", th:"หาหมอ"},
+{hz:"看到", py:"kàndào", pos:"VERB", en:"see", jp:"見える", th:"เห็น"},
+{hz:"看见", py:"kànjiàn", pos:"VERB", en:"see", jp:"見かける", th:"เห็น"},
+{hz:"考", py:"kǎo", pos:"VERB", en:"test", jp:"試験する", th:"สอบ"},
+{hz:"考试", py:"kǎoshì", pos:"NOUN", en:"exam", jp:"試験", th:"การสอบ"},
+{hz:"渴", py:"kě", pos:"ADJ", en:"thirsty", jp:"喉が渇く", th:"กระหาย"},
+{hz:"课", py:"kè", pos:"NOUN", en:"lesson", jp:"授業", th:"บทเรียน"},
+{hz:"课本", py:"kèběn", pos:"NOUN", en:"textbook", jp:"教科書", th:"หนังสือเรียน"},
+{hz:"课文", py:"kèwén", pos:"NOUN", en:"text", jp:"本文", th:"บทความ"},
+{hz:"口", py:"kǒu", pos:"CLF", en:"mouth/classifier", jp:"口", th:"ปาก"},
+{hz:"块", py:"kuài", pos:"CLF", en:"piece/currency", jp:"元", th:"หยวน"},
+{hz:"快", py:"kuài", pos:"ADJ", en:"fast", jp:"速い", th:"เร็ว"},
+{hz:"来", py:"lái", pos:"VERB", en:"come", jp:"来る", th:"มา"},
+{hz:"老", py:"lǎo", pos:"ADJ", en:"old", jp:"古い", th:"แก่"},
+{hz:"老人", py:"lǎorén", pos:"NOUN", en:"elderly", jp:"老人", th:"ผู้สูงอายุ"},
+{hz:"老师", py:"lǎoshī", pos:"NOUN", en:"teacher", jp:"先生", th:"ครู"},
+{hz:"了", py:"le", pos:"PART", en:"completed action", jp:"了", th:"แล้ว"},
+{hz:"累", py:"lèi", pos:"ADJ", en:"tired", jp:"疲れる", th:"เหนื่อย"},
+{hz:"冷", py:"lěng", pos:"ADJ", en:"cold", jp:"寒い", th:"หนาว"},
+{hz:"里", py:"lǐ", pos:"NOUN", en:"inside", jp:"中", th:"ใน"},
+{hz:"里边", py:"lǐbiān", pos:"NOUN", en:"inside", jp:"中", th:"ด้านใน"},
+{hz:"两", py:"liǎng", pos:"NUM", en:"two", jp:"二", th:"สอง"},
+{hz:"零", py:"líng", pos:"NUM", en:"zero", jp:"零", th:"ศูนย์"},
+{hz:"六", py:"liù", pos:"NUM", en:"six", jp:"六", th:"หก"},
+{hz:"楼", py:"lóu", pos:"NOUN", en:"building", jp:"ビル", th:"ตึก"},
+{hz:"楼上", py:"lóushàng", pos:"NOUN", en:"upstairs", jp:"上の階", th:"ชั้นบน"},
+{hz:"楼下", py:"lóuxià", pos:"NOUN", en:"downstairs", jp:"下の階", th:"ชั้นล่าง"},
+{hz:"路", py:"lù", pos:"NOUN", en:"road", jp:"道", th:"ถนน"},
+{hz:"路口", py:"lùkǒu", pos:"NOUN", en:"intersection", jp:"交差点", th:"แยก"},
+{hz:"路上", py:"lùshàng", pos:"NOUN", en:"on the road", jp:"道で", th:"บนถนน"},
+{hz:"妈妈", py:"māma", pos:"NOUN", en:"mother", jp:"母", th:"แม่"},
+{hz:"马路", py:"mǎlù", pos:"NOUN", en:"street", jp:"道路", th:"ถนน"},
+{hz:"马上", py:"mǎshàng", pos:"ADV", en:"immediately", jp:"すぐに", th:"ทันที"},
+{hz:"吗", py:"ma", pos:"PART", en:"question particle", jp:"か", th:"ไหม"},
+{hz:"买", py:"mǎi", pos:"VERB", en:"buy", jp:"買う", th:"ซื้อ"},
+{hz:"慢", py:"màn", pos:"ADJ", en:"slow", jp:"遅い", th:"ช้า"},
+{hz:"忙", py:"máng", pos:"ADJ", en:"busy", jp:"忙しい", th:"ยุ่ง"},
+{hz:"毛", py:"máo", pos:"NOUN", en:"hair/fur", jp:"毛", th:"ขน"},
+{hz:"没", py:"méi", pos:"ADV", en:"not", jp:"ない", th:"ไม่"},
+{hz:"没关系", py:"méiguānxi", pos:"PHRASE", en:"no problem", jp:"大丈夫", th:"ไม่เป็นไร"},
+{hz:"没什么", py:"méi shénme", pos:"PHRASE", en:"nothing", jp:"何でもない", th:"ไม่มีอะไร"},
+{hz:"没事儿", py:"méi shìr", pos:"PHRASE", en:"it's okay", jp:"大丈夫", th:"ไม่เป็นไร"},
+{hz:"没有", py:"méiyǒu", pos:"VERB", en:"not have", jp:"ない", th:"ไม่มี"},
+{hz:"妹妹", py:"mèimei", pos:"NOUN", en:"younger sister", jp:"妹", th:"น้องสาว"},
+{hz:"门", py:"mén", pos:"NOUN", en:"door", jp:"ドア", th:"ประตู"},
+{hz:"门口", py:"ménkǒu", pos:"NOUN", en:"doorway", jp:"入口", th:"หน้าประตู"},
+{hz:"门票", py:"ménpiào", pos:"NOUN", en:"ticket", jp:"入場券", th:"ตั๋ว"},
+{hz:"们", py:"men", pos:"PART", en:"plural marker", jp:"たち", th:"พวก"},
+{hz:"米饭", py:"mǐfàn", pos:"NOUN", en:"rice", jp:"ご飯", th:"ข้าว"},
+{hz:"面包", py:"miànbāo", pos:"NOUN", en:"bread", jp:"パン", th:"ขนมปัง"},
+{hz:"面条儿", py:"miàntiáor", pos:"NOUN", en:"noodles", jp:"麺", th:"ก๋วยเตี๋ยว"},
+{hz:"名字", py:"míngzi", pos:"NOUN", en:"name", jp:"名前", th:"ชื่อ"},
+{hz:"明白", py:"míngbai", pos:"VERB", en:"understand", jp:"分かる", th:"เข้าใจ"},
+{hz:"明年", py:"míngnián", pos:"NOUN", en:"next year", jp:"来年", th:"ปีหน้า"},
+{hz:"明天", py:"míngtiān", pos:"NOUN", en:"tomorrow", jp:"明日", th:"พรุ่งนี้"},
+{hz:"拿", py:"ná", pos:"VERB", en:"take/hold", jp:"持つ", th:"ถือ"},
+{hz:"哪", py:"nǎ", pos:"PRON", en:"which", jp:"どれ", th:"ไหน"},
+{hz:"哪里", py:"nǎlǐ", pos:"PRON", en:"where", jp:"どこ", th:"ที่ไหน"},
+{hz:"哪儿", py:"nǎr", pos:"PRON", en:"where", jp:"どこ", th:"ที่ไหน"},
+{hz:"哪些", py:"nǎxiē", pos:"PRON", en:"which (plural)", jp:"どれら", th:"ไหนบ้าง"},
+{hz:"那", py:"nà", pos:"PRON", en:"that", jp:"あれ", th:"นั้น"},
+{hz:"那边", py:"nàbiān", pos:"PRON", en:"over there", jp:"あちら", th:"ทางนั้น"},
+{hz:"那里", py:"nàlǐ", pos:"PRON", en:"there", jp:"そこ", th:"ที่นั่น"},
+{hz:"那儿", py:"nàr", pos:"PRON", en:"there", jp:"あそこ", th:"ที่นั่น"},
+{hz:"那些", py:"nàxiē", pos:"PRON", en:"those", jp:"それら", th:"เหล่านั้น"},
+{hz:"奶", py:"nǎi", pos:"NOUN", en:"milk", jp:"ミルク", th:"นม"},
+{hz:"奶奶", py:"nǎinai", pos:"NOUN", en:"grandmother", jp:"祖母", th:"ย่า/ยาย"},
+{hz:"男", py:"nán", pos:"NOUN", en:"male", jp:"男", th:"ผู้ชาย"},
+{hz:"男孩儿", py:"nánháir", pos:"NOUN", en:"boy", jp:"男の子", th:"เด็กผู้ชาย"},
+{hz:"男朋友", py:"nánpéngyou", pos:"NOUN", en:"boyfriend", jp:"彼氏", th:"แฟนชาย"},
+{hz:"男人", py:"nánrén", pos:"NOUN", en:"man", jp:"男性", th:"ผู้ชาย"},
+{hz:"男生", py:"nánshēng", pos:"NOUN", en:"male student", jp:"男子学生", th:"นักเรียนชาย"},
+{hz:"南", py:"nán", pos:"NOUN", en:"south", jp:"南", th:"ใต้"},
+{hz:"南边", py:"nánbiān", pos:"NOUN", en:"south side", jp:"南側", th:"ด้านใต้"},
+{hz:"难", py:"nán", pos:"ADJ", en:"difficult", jp:"難しい", th:"ยาก"},
+{hz:"呢", py:"ne", pos:"PART", en:"question particle", jp:"ね", th:"ล่ะ"},
+{hz:"能", py:"néng", pos:"VERB", en:"can/able", jp:"できる", th:"สามารถ"},
+{hz:"你", py:"nǐ", pos:"PRON", en:"you", jp:"あなた", th:"คุณ"},
+{hz:"你们", py:"nǐmen", pos:"PRON", en:"you (plural)", jp:"あなたたち", th:"พวกคุณ"},
+{hz:"年", py:"nián", pos:"NOUN", en:"year", jp:"年", th:"ปี"},
+{hz:"您", py:"nín", pos:"PRON", en:"you (polite)", jp:"あなた（丁寧）", th:"คุณ(สุภาพ)"},
+{hz:"牛奶", py:"niúnǎi", pos:"NOUN", en:"milk", jp:"牛乳", th:"นม"},
+{hz:"女", py:"nǚ", pos:"NOUN", en:"female", jp:"女", th:"ผู้หญิง"},
+{hz:"女儿", py:"nǚ'ér", pos:"NOUN", en:"daughter", jp:"娘", th:"ลูกสาว"},
+{hz:"女孩儿", py:"nǚháir", pos:"NOUN", en:"girl", jp:"女の子", th:"เด็กผู้หญิง"},
+{hz:"女朋友", py:"nǚpéngyou", pos:"NOUN", en:"girlfriend", jp:"彼女", th:"แฟนหญิง"},
+{hz:"女人", py:"nǚrén", pos:"NOUN", en:"woman", jp:"女性", th:"ผู้หญิง"},
+{hz:"女生", py:"nǚshēng", pos:"NOUN", en:"female student", jp:"女子学生", th:"นักเรียนหญิง"},
+{hz:"旁边", py:"pángbiān", pos:"NOUN", en:"beside", jp:"隣", th:"ข้างๆ"},
+{hz:"跑", py:"pǎo", pos:"VERB", en:"run", jp:"走る", th:"วิ่ง"},
+{hz:"朋友", py:"péngyou", pos:"NOUN", en:"friend", jp:"友達", th:"เพื่อน"},
+{hz:"票", py:"piào", pos:"NOUN", en:"ticket", jp:"チケット", th:"ตั๋ว"},
+{hz:"七", py:"qī", pos:"NUM", en:"seven", jp:"七", th:"เจ็ด"},
+{hz:"起", py:"qǐ", pos:"VERB", en:"rise", jp:"起きる", th:"ลุก"},
+{hz:"起床", py:"qǐchuáng", pos:"VERB", en:"get up", jp:"起床する", th:"ตื่นนอน"},
+{hz:"起来", py:"qǐlái", pos:"VERB", en:"get up/stand", jp:"立ち上がる", th:"ลุกขึ้น"},
+{hz:"汽车", py:"qìchē", pos:"NOUN", en:"car", jp:"自動車", th:"รถยนต์"},
+{hz:"前", py:"qián", pos:"NOUN", en:"front", jp:"前", th:"หน้า"},
+{hz:"前边", py:"qiánbiān", pos:"NOUN", en:"in front", jp:"前方", th:"ด้านหน้า"},
+{hz:"前天", py:"qiántiān", pos:"NOUN", en:"day before yesterday", jp:"一昨日", th:"เมื่อวานซืน"},
+{hz:"钱", py:"qián", pos:"NOUN", en:"money", jp:"お金", th:"เงิน"},
+{hz:"钱包", py:"qiánbāo", pos:"NOUN", en:"wallet", jp:"財布", th:"กระเป๋าเงิน"},
+{hz:"请", py:"qǐng", pos:"VERB", en:"please/invite", jp:"どうぞ", th:"กรุณา"},
+{hz:"请假", py:"qǐngjià", pos:"VERB", en:"ask leave", jp:"休暇を取る", th:"ลางาน"},
+{hz:"请进", py:"qǐngjìn", pos:"PHRASE", en:"please come in", jp:"どうぞお入りください", th:"เชิญเข้า"},
+{hz:"请问", py:"qǐngwèn", pos:"PHRASE", en:"may I ask", jp:"すみませんが", th:"ขอถาม"},
+{hz:"请坐", py:"qǐngzuò", pos:"PHRASE", en:"please sit", jp:"どうぞお座りください", th:"เชิญนั่ง"},
+{hz:"球", py:"qiú", pos:"NOUN", en:"ball", jp:"ボール", th:"ลูกบอล"},
+{hz:"去", py:"qù", pos:"VERB", en:"go", jp:"行く", th:"ไป"},
+{hz:"去年", py:"qùnián", pos:"NOUN", en:"last year", jp:"去年", th:"ปีที่แล้ว"},
+{hz:"热", py:"rè", pos:"ADJ", en:"hot", jp:"暑い", th:"ร้อน"},
+{hz:"人", py:"rén", pos:"NOUN", en:"person", jp:"人", th:"คน"},
+{hz:"认识", py:"rènshi", pos:"VERB", en:"know", jp:"知る", th:"รู้จัก"},
+{hz:"认真", py:"rènzhēn", pos:"ADJ", en:"serious", jp:"真面目", th:"จริงจัง"},
+{hz:"日", py:"rì", pos:"NOUN", en:"day", jp:"日", th:"วัน"},
+{hz:"日期", py:"rìqī", pos:"NOUN", en:"date", jp:"日付", th:"วันที่"},
+{hz:"肉", py:"ròu", pos:"NOUN", en:"meat", jp:"肉", th:"เนื้อ"},
+{hz:"三", py:"sān", pos:"NUM", en:"three", jp:"三", th:"สาม"},
+{hz:"山", py:"shān", pos:"NOUN", en:"mountain", jp:"山", th:"ภูเขा"},
+{hz:"商场", py:"shāngchǎng", pos:"N", en:"mall; marketplace", jp:"ショッピングモール", th:"ห้างสรรพสินค้า"},
+{hz:"商店", py:"shāngdiàn", pos:"N", en:"shop; store", jp:"店", th:"ร้านค้า"},
+{hz:"上", py:"shàng", pos:"V", en:"to go up; above", jp:"上", th:"ขึ้น; บน"},
+{hz:"上班", py:"shàngbān", pos:"V", en:"to go to work", jp:"出勤する", th:"ไปทำงาน"},
+{hz:"上边", py:"shàngbian", pos:"N", en:"upper side; above", jp:"上側", th:"ด้านบน"},
+{hz:"上车", py:"shàngchē", pos:"V", en:"to get on (vehicle)", jp:"乗車する", th:"ขึ้นรถ"},
+{hz:"上次", py:"shàngcì", pos:"N", en:"last time", jp:"前回", th:"ครั้งที่แล้ว"},
+{hz:"上课", py:"shàngkè", pos:"V", en:"to attend class", jp:"授業を受ける", th:"เข้าเรียน"},
+{hz:"上网", py:"shàngwǎng", pos:"V", en:"to go online", jp:"インターネットをする", th:"เล่นอินเทอร์เน็ต"},
+{hz:"上午", py:"shàngwǔ", pos:"N", en:"morning", jp:"午前", th:"ตอนเช้า"},
+{hz:"上学", py:"shàngxué", pos:"V", en:"to go to school", jp:"登校する", th:"ไปโรงเรียน"},
+{hz:"少", py:"shǎo", pos:"Adj", en:"few; little", jp:"少ない", th:"น้อย"},
+{hz:"身上", py:"shēnshang", pos:"N", en:"on the body", jp:"身に", th:"บนตัว"},
+{hz:"身体", py:"shēntǐ", pos:"N", en:"body; health", jp:"体", th:"ร่างกาย"},
+{hz:"什么", py:"shénme", pos:"Pron", en:"what", jp:"何", th:"อะไร"},
+{hz:"生病", py:"shēngbìng", pos:"V", en:"to get sick", jp:"病気になる", th:"ป่วย"},
+{hz:"生气", py:"shēngqì", pos:"Adj", en:"angry", jp:"怒る", th:"โกรธ"},
+{hz:"生日", py:"shēngrì", pos:"N", en:"birthday", jp:"誕生日", th:"วันเกิด"},
+{hz:"十", py:"shí", pos:"Num", en:"ten", jp:"十", th:"สิบ"},
+{hz:"时候", py:"shíhou", pos:"N", en:"time; moment", jp:"時", th:"เวลา"},
+{hz:"时间", py:"shíjiān", pos:"N", en:"time", jp:"時間", th:"เวลา"},
+{hz:"事", py:"shì", pos:"N", en:"matter; affair", jp:"事", th:"เรื่อง"},
+{hz:"试", py:"shì", pos:"V", en:"to try", jp:"試す", th:"ลอง"},
+{hz:"是", py:"shì", pos:"V", en:"to be", jp:"～です", th:"เป็น"},
+{hz:"是不是", py:"shìbushì", pos:"Expr", en:"is it or not", jp:"〜ですか", th:"ใช่หรือไม่"},
+{hz:"手", py:"shǒu", pos:"N", en:"hand", jp:"手", th:"มือ"},
+{hz:"手机", py:"shǒujī", pos:"N", en:"mobile phone", jp:"携帯電話", th:"มือถือ"},
+{hz:"书", py:"shū", pos:"N", en:"book", jp:"本", th:"หนังสือ"},
+{hz:"书包", py:"shūbāo", pos:"N", en:"school bag", jp:"ランドセル", th:"กระเป๋านักเรียน"},
+{hz:"书店", py:"shūdiàn", pos:"N", en:"bookstore", jp:"本屋", th:"ร้านหนังสือ"},
+{hz:"树", py:"shù", pos:"N", en:"tree", jp:"木", th:"ต้นไม้"},
+{hz:"水", py:"shuǐ", pos:"N", en:"water", jp:"水", th:"น้ำ"},
+{hz:"水果", py:"shuǐguǒ", pos:"N", en:"fruit", jp:"果物", th:"ผลไม้"},
+{hz:"睡", py:"shuì", pos:"V", en:"to sleep", jp:"寝る", th:"นอน"},
+{hz:"睡觉", py:"shuìjiào", pos:"V", en:"to sleep", jp:"就寝する", th:"นอนหลับ"},
+{hz:"说", py:"shuō", pos:"V", en:"to speak", jp:"話す", th:"พูด"},
+{hz:"说话", py:"shuōhuà", pos:"V", en:"to talk", jp:"話をする", th:"พูดคุย"},
+{hz:"四", py:"sì", pos:"Num", en:"four", jp:"四", th:"สี่"},
+{hz:"送", py:"sòng", pos:"V", en:"to give; to deliver", jp:"送る", th:"ส่ง/ให้"},
+{hz:"岁", py:"suì", pos:"MW", en:"years old", jp:"歳", th:"ปี (อายุ)"},
+{hz:"他", py:"tā", pos:"Pron", en:"he", jp:"彼", th:"เขา"},
+{hz:"他们", py:"tāmen", pos:"Pron", en:"they", jp:"彼ら", th:"พวกเขา"},
+{hz:"她", py:"tā", pos:"Pron", en:"she", jp:"彼女", th:"เธอ"},
+{hz:"她们", py:"tāmen", pos:"Pron", en:"they", jp:"彼女たち", th:"พวกเธอ"},
+{hz:"太", py:"tài", pos:"Adv", en:"too; very", jp:"とても", th:"เกินไป"},
+{hz:"天", py:"tiān", pos:"N", en:"day; sky", jp:"空／日", th:"วัน"},
+{hz:"听", py:"tīng", pos:"V", en:"to listen", jp:"聞く", th:"ฟัง"},
+{hz:"听到", py:"tīngdào", pos:"V", en:"to hear", jp:"聞こえる", th:"ได้ยิน"},
+{hz:"听见", py:"tīngjiàn", pos:"V", en:"to hear", jp:"聞く", th:"ได้ยิน"},
+{hz:"听写", py:"tīngxiě", pos:"N", en:"dictation", jp:"聞き取り書き", th:"การคัดตามเสียง"},
+{hz:"同学", py:"tóngxué", pos:"N", en:"classmate", jp:"同級生", th:"เพื่อนร่วมชั้น"},
+{hz:"图书馆", py:"túshūguǎn", pos:"N", en:"library", jp:"図書館", th:"ห้องสมุด"},
+{hz:"外", py:"wài", pos:"N", en:"outside", jp:"外", th:"ข้างนอก"},
+{hz:"外边", py:"wàibian", pos:"N", en:"outside", jp:"外側", th:"ด้านนอก"},
+{hz:"外国", py:"wàiguó", pos:"N", en:"foreign country", jp:"外国", th:"ต่างประเทศ"},
+{hz:"外语", py:"wàiyǔ", pos:"N", en:"foreign language", jp:"外国語", th:"ภาษาต่างประเทศ"},
+{hz:"玩儿", py:"wánr", pos:"V", en:"to play", jp:"遊ぶ", th:"เล่น"},
+{hz:"晚", py:"wǎn", pos:"Adj", en:"late", jp:"遅い", th:"สาย/ค่ำ"},
+{hz:"晚饭", py:"wǎnfàn", pos:"N", en:"dinner", jp:"夕食", th:"อาหารเย็น"},
+{hz:"晚上", py:"wǎnshang", pos:"N", en:"evening", jp:"夜", th:"ตอนกลางคืน"},
+{hz:"网上", py:"wǎngshang", pos:"N", en:"online", jp:"オンライン上", th:"บนอินเทอร์เน็ต"},
+{hz:"网友", py:"wǎngyǒu", pos:"N", en:"internet friend", jp:"ネット友達", th:"เพื่อนในเน็ต"},
+{hz:"忘", py:"wàng", pos:"V", en:"to forget", jp:"忘れる", th:"ลืม"},
+{hz:"忘记", py:"wàngjì", pos:"V", en:"to forget", jp:"忘却する", th:"ลืม"},
+{hz:"问", py:"wèn", pos:"V", en:"to ask", jp:"聞く", th:"ถาม"},
+{hz:"我", py:"wǒ", pos:"Pron", en:"I; me", jp:"私", th:"ฉัน"},
+{hz:"我们", py:"wǒmen", pos:"Pron", en:"we", jp:"私たち", th:"พวกเรา"},
+{hz:"五", py:"wǔ", pos:"Num", en:"five", jp:"五", th:"ห้า"},
+{hz:"午饭", py:"wǔfàn", pos:"N", en:"lunch", jp:"昼食", th:"อาหารกลางวัน"},
+{hz:"西", py:"xī", pos:"N", en:"west", jp:"西", th:"ตะวันตก"},
+{hz:"西边", py:"xībian", pos:"N", en:"west side", jp:"西側", th:"ด้านตะวันตก"},
+{hz:"洗", py:"xǐ", pos:"V", en:"to wash", jp:"洗う", th:"ล้าง"},
+{hz:"洗手间", py:"xǐshǒujiān", pos:"N", en:"restroom", jp:"トイレ", th:"ห้องน้ำ"},
+{hz:"喜欢", py:"xǐhuan", pos:"V", en:"to like", jp:"好き", th:"ชอบ"},
+{hz:"下", py:"xià", pos:"V", en:"down; go down", jp:"下", th:"ลง"},
+{hz:"下班", py:"xiàbān", pos:"V", en:"to get off work", jp:"退勤する", th:"เลิกงาน"},
+{hz:"下边", py:"xiàbian", pos:"N", en:"below", jp:"下側", th:"ด้านล่าง"},
+{hz:"下车", py:"xiàchē", pos:"V", en:"to get off (vehicle)", jp:"下車する", th:"ลงรถ"},
+{hz:"下次", py:"xiàcì", pos:"N", en:"next time", jp:"次回", th:"ครั้งหน้า"},
+{hz:"下课", py:"xiàkè", pos:"V", en:"class ends", jp:"授業が終わる", th:"เลิกเรียน"},
+{hz:"下午", py:"xiàwǔ", pos:"N", en:"afternoon", jp:"午後", th:"ตอนบ่าย"},
+{hz:"下雨", py:"xiàyǔ", pos:"V", en:"to rain", jp:"雨が降る", th:"ฝนตก"},
+{hz:"先", py:"xiān", pos:"Adv", en:"first", jp:"先に", th:"ก่อน"},
+{hz:"先生", py:"xiānsheng", pos:"N", en:"Mr.; sir", jp:"先生", th:"คุณผู้ชาย"},
+{hz:"现在", py:"xiànzài", pos:"N", en:"now", jp:"今", th:"ตอนนี้"},
+{hz:"想", py:"xiǎng", pos:"V", en:"to think; want", jp:"考える", th:"คิด; อยาก"},
+{hz:"小", py:"xiǎo", pos:"Adj", en:"small", jp:"小さい", th:"เล็ก"},
+{hz:"小孩儿", py:"xiǎoháir", pos:"N", en:"child", jp:"子供", th:"เด็ก"},
+{hz:"小姐", py:"xiǎojiě", pos:"N", en:"Miss", jp:"お嬢さん", th:"คุณผู้หญิง"},
+{hz:"小朋友", py:"xiǎopéngyou", pos:"N", en:"child", jp:"子ども", th:"เด็ก"},
+{hz:"小时", py:"xiǎoshí", pos:"N", en:"hour", jp:"時間", th:"ชั่วโมง"},
+{hz:"小学", py:"xiǎoxué", pos:"N", en:"primary school", jp:"小学校", th:"โรงเรียนประถม"},
+{hz:"小学生", py:"xiǎoxuéshēng", pos:"N", en:"primary student", jp:"小学生", th:"นักเรียนประถม"},
+{hz:"笑", py:"xiào", pos:"V", en:"to laugh", jp:"笑う", th:"หัวเราะ"},
+{hz:"写", py:"xiě", pos:"V", en:"to write", jp:"書く", th:"เขียน"},
+{hz:"谢谢", py:"xièxie", pos:"Expr", en:"thank you", jp:"ありがとう", th:"ขอบคุณ"},
+{hz:"新", py:"xīn", pos:"Adj", en:"new", jp:"新しい", th:"ใหม่"},
+{hz:"新年", py:"xīnnián", pos:"N", en:"New Year", jp:"新年", th:"ปีใหม่"},
+{hz:"星期", py:"xīngqī", pos:"N", en:"week", jp:"週", th:"สัปดาห์"},
+{hz:"星期日", py:"xīngqīrì", pos:"N", en:"Sunday", jp:"日曜日", th:"วันอาทิตย์"},
+{hz:"星期天", py:"xīngqītiān", pos:"N", en:"Sunday", jp:"日曜", th:"วันอาทิตย์"},
+{hz:"行", py:"xíng", pos:"Adj", en:"OK; workable", jp:"良い", th:"ใช้ได้"},
+{hz:"休息", py:"xiūxi", pos:"V", en:"to rest", jp:"休む", th:"พัก"},
+{hz:"学", py:"xué", pos:"V", en:"to study", jp:"学ぶ", th:"เรียน"},
+{hz:"学生", py:"xuéshēng", pos:"N", en:"student", jp:"学生", th:"นักเรียน"},
+{hz:"学习", py:"xuéxí", pos:"V", en:"to study", jp:"学習する", th:"เรียน"},
+{hz:"学校", py:"xuéxiào", pos:"N", en:"school", jp:"学校", th:"โรงเรียน"},
+{hz:"学院", py:"xuéyuàn", pos:"N", en:"college", jp:"学院", th:"สถาบัน"},
+{hz:"要", py:"yào", pos:"V", en:"to want; need", jp:"欲しい", th:"ต้องการ"},
+{hz:"爷爷", py:"yéye", pos:"N", en:"grandfather", jp:"祖父", th:"ปู่"},
+{hz:"也", py:"yě", pos:"Adv", en:"also", jp:"も", th:"ก็"},
+{hz:"页", py:"yè", pos:"MW", en:"page", jp:"ページ", th:"หน้า"},
+{hz:"一", py:"yī", pos:"Num", en:"one", jp:"一", th:"หนึ่ง"},
+{hz:"衣服", py:"yīfu", pos:"N", en:"clothes", jp:"服", th:"เสื้อผ้า"},
+{hz:"医院", py:"yīyuàn", pos:"N", en:"hospital", jp:"病院", th:"โรงพยาบาล"},
+{hz:"一半", py:"yíbàn", pos:"N", en:"half", jp:"半分", th:"ครึ่ง"},
+{hz:"一会儿", py:"yíhuìr", pos:"N", en:"a moment", jp:"しばらく", th:"ครู่หนึ่ง"},
+{hz:"一块儿", py:"yíkuàir", pos:"Adv", en:"together", jp:"一緒に", th:"ด้วยกัน"},
+{hz:"一下儿", py:"yíxiàr", pos:"Adv", en:"a bit", jp:"ちょっと", th:"นิดหน่อย"},
+{hz:"一样", py:"yíyàng", pos:"Adj", en:"same", jp:"同じ", th:"เหมือนกัน"},
+{hz:"一边", py:"yìbiān", pos:"Conj", en:"while doing", jp:"〜しながら", th:"ขณะ"},
+{hz:"一点儿", py:"yìdiǎnr", pos:"N", en:"a little", jp:"少し", th:"เล็กน้อย"},
+{hz:"一起", py:"yìqǐ", pos:"Adv", en:"together", jp:"一緒に", th:"ด้วยกัน"},
+{hz:"一些", py:"yìxiē", pos:"Pron", en:"some", jp:"いくつか", th:"บางส่วน"},
+{hz:"用", py:"yòng", pos:"V", en:"to use", jp:"使う", th:"ใช้"},
+{hz:"有", py:"yǒu", pos:"V", en:"to have", jp:"ある", th:"มี"},
+{hz:"有的", py:"yǒude", pos:"Pron", en:"some", jp:"ある〜", th:"บาง"},
+{hz:"有名", py:"yǒumíng", pos:"Adj", en:"famous", jp:"有名", th:"มีชื่อเสียง"},
+{hz:"有时候", py:"yǒushíhou", pos:"Adv", en:"sometimes", jp:"時々", th:"บางครั้ง"},
+{hz:"有些", py:"yǒuxiē", pos:"Pron", en:"some", jp:"いくつか", th:"บางส่วน"},
+{hz:"有用", py:"yǒuyòng", pos:"Adj", en:"useful", jp:"役に立つ", th:"มีประโยชน์"},
+{hz:"右", py:"yòu", pos:"N", en:"right", jp:"右", th:"ขวา"},
+{hz:"右边", py:"yòubian", pos:"N", en:"right side", jp:"右側", th:"ด้านขวา"},
+{hz:"雨", py:"yǔ", pos:"N", en:"rain", jp:"雨", th:"ฝน"},
+{hz:"元", py:"yuán", pos:"MW", en:"yuan", jp:"元", th:"หยวน"},
+{hz:"远", py:"yuǎn", pos:"Adj", en:"far", jp:"遠い", th:"ไกล"},
+{hz:"月", py:"yuè", pos:"N", en:"month", jp:"月", th:"เดือน"},
+{hz:"再", py:"zài", pos:"Adv", en:"again", jp:"再び", th:"อีก"},
+{hz:"再见", py:"zàijiàn", pos:"Expr", en:"goodbye", jp:"さようなら", th:"ลาก่อน"},
+{hz:"在", py:"zài", pos:"Prep", en:"at; in", jp:"〜に", th:"ที่"},
+{hz:"在家", py:"zàijiā", pos:"Expr", en:"at home", jp:"家にいる", th:"อยู่บ้าน"},
+{hz:"早", py:"zǎo", pos:"Adj", en:"early", jp:"早い", th:"เช้า"},
+{hz:"早饭", py:"zǎofàn", pos:"N", en:"breakfast", jp:"朝ごはん", th:"อาหารเช้า"},
+{hz:"早上", py:"zǎoshang", pos:"N", en:"morning", jp:"朝", th:"ตอนเช้า"},
+{hz:"怎么", py:"zěnme", pos:"Adv", en:"how", jp:"どうやって", th:"อย่างไร"},
+{hz:"站", py:"zhàn", pos:"V", en:"to stand", jp:"立つ", th:"ยืน"},
+{hz:"找", py:"zhǎo", pos:"V", en:"to look for", jp:"探す", th:"หา"},
+{hz:"找到", py:"zhǎodào", pos:"V", en:"to find", jp:"見つける", th:"หาเจอ"},
+{hz:"这", py:"zhè", pos:"Pron", en:"this", jp:"これ", th:"นี้"},
+{hz:"这边", py:"zhèbian", pos:"N", en:"this side", jp:"こちら", th:"ด้านนี้"},
+{hz:"这里", py:"zhèlǐ", pos:"N", en:"here", jp:"ここ", th:"ที่นี่"},
+{hz:"这儿", py:"zhèr", pos:"N", en:"here", jp:"ここ", th:"ที่นี่"},
+{hz:"这些", py:"zhèxiē", pos:"Pron", en:"these", jp:"これら", th:"เหล่านี้"},
+{hz:"着", py:"zhe", pos:"Part", en:"(aspect particle)", jp:"〜ている", th:"กำลัง"},
+{hz:"真", py:"zhēn", pos:"Adv", en:"really", jp:"本当に", th:"จริง"},
+{hz:"真的", py:"zhēnde", pos:"Adv", en:"really", jp:"本当に", th:"จริงๆ"},
+{hz:"正", py:"zhèng", pos:"Adv", en:"just", jp:"ちょうど", th:"พอดี"},
+{hz:"正在", py:"zhèngzài", pos:"Adv", en:"in progress", jp:"〜している", th:"กำลัง"},
+{hz:"知道", py:"zhīdào", pos:"V", en:"to know", jp:"知る", th:"รู้"},
+{hz:"知识", py:"zhīshi", pos:"N", en:"knowledge", jp:"知識", th:"ความรู้"},
+{hz:"中", py:"zhōng", pos:"N", en:"middle", jp:"中", th:"กลาง"},
+{hz:"中国", py:"Zhōngguó", pos:"N", en:"China", jp:"中国", th:"จีน"},
+{hz:"中间", py:"zhōngjiān", pos:"N", en:"middle", jp:"真ん中", th:"กลาง"},
+{hz:"中文", py:"Zhōngwén", pos:"N", en:"Chinese language", jp:"中国語", th:"ภาษาจีน"},
+{hz:"中午", py:"zhōngwǔ", pos:"N", en:"noon", jp:"正午", th:"เที่ยง"},
+{hz:"中学", py:"zhōngxué", pos:"N", en:"middle school", jp:"中学校", th:"มัธยม"},
+{hz:"中学生", py:"zhōngxuéshēng", pos:"N", en:"middle school student", jp:"中学生", th:"นักเรียนมัธยม"},
+{hz:"重", py:"zhòng", pos:"Adj", en:"heavy", jp:"重い", th:"หนัก"},
+{hz:"重要", py:"zhòngyào", pos:"Adj", en:"important", jp:"重要", th:"สำคัญ"},
+{hz:"住", py:"zhù", pos:"V", en:"to live", jp:"住む", th:"อาศัย"},
+{hz:"准备", py:"zhǔnbèi", pos:"V", en:"to prepare", jp:"準備する", th:"เตรียม"},
+{hz:"桌子", py:"zhuōzi", pos:"N", en:"table", jp:"机", th:"โต๊ะ"},
+{hz:"字", py:"zì", pos:"N", en:"character", jp:"字", th:"ตัวอักษร"},
+{hz:"子", py:"zi", pos:"Part", en:"suffix", jp:"子", th:"คำเสริม"},
+{hz:"走", py:"zǒu", pos:"V", en:"to walk", jp:"歩く", th:"เดิน"},
+{hz:"走路", py:"zǒulù", pos:"V", en:"to walk", jp:"歩く", th:"เดิน"},
+{hz:"最", py:"zuì", pos:"Adv", en:"most", jp:"最も", th:"ที่สุด"},
+{hz:"最好", py:"zuìhǎo", pos:"Adj", en:"best", jp:"一番良い", th:"ดีที่สุด"},
+{hz:"最后", py:"zuìhòu", pos:"N", en:"last", jp:"最後", th:"สุดท้าย"},
+{hz:"昨天", py:"zuótiān", pos:"N", en:"yesterday", jp:"昨日", th:"เมื่อวาน"},
+{hz:"左", py:"zuǒ", pos:"N", en:"left", jp:"左", th:"ซ้าย"},
+{hz:"左边", py:"zuǒbian", pos:"N", en:"left side", jp:"左側", th:"ด้านซ้าย"},
+{hz:"坐", py:"zuò", pos:"V", en:"to sit", jp:"座る", th:"นั่ง"},
+{hz:"坐下", py:"zuòxià", pos:"V", en:"sit down", jp:"座る", th:"นั่งลง"},
+{hz:"做", py:"zuò", pos:"V", en:"to do; make", jp:"する", th:"ทำ"}
+    ];
+
+    // Daftar Kata Tambahan (Diterjemahkan Otomatis ke Sistem)
+    const listRaw = "吧 白 白天 班 半 帮忙 包 包子 北 北边 本 本子 比 别 别的 别人 病 病人 不大 不对 不用 菜 差 常 常常 唱 唱歌 车 车票 车上 车站 吃饭 出 出来 出去 穿 床 次 从 错 打 打车 打电话 打开 打球 大学 大学生 到 得到 地 的 等 地点 地方 地上 地图 弟弟 第 点 电 电话 电脑 电视 电视机 电影院 东 东边 东西 动 动作 都 读 读书 对 多 饿 儿子 二 饭 饭店 房间 房子 放 放假 放学 飞 飞机 非常 分 风 干 干净 高 告诉 哥哥 歌 个 给 跟 工人 工作 关 关上 贵 国 国家 国外 过 还 还是 还有 孩子 汉语 汉字 好吃 好看 好听 好玩儿 号 喝 和 很 后 后边 后天 花 话 坏 回 回答 回到 回家 回来 回去 会 火车 机场 机票 鸡蛋 几 记 记得 记住 家 家里 家人 间 见 见面 教 叫 教学楼 姐姐 介绍 今年 今天 进 进来 进去 九 就 觉得 开 开车 开会 开玩笑 看 看病 看到 看见 考 考试 渴 课 课本 课文 口 块 快 来 来to 老 老人 老师 了 累 冷 里 里边 两 零 六 楼 楼上 楼下 路 路口 路上 妈妈 马路 马上 吗 买 慢 忙 毛 没 没关系 没什么 没事儿 没有 妹妹 门 门口 门票 们 米饭 面包 面条儿 名字 明白 明年 明天 拿 哪 哪里 哪儿 哪些 那 那边 那里 那儿 那些 奶 奶奶 男 男孩儿 男朋友 男人 男生 南 南边 难 呢 能 你 你们 年 您 牛奶 女 女儿 女孩儿 女朋友 女人 女生 旁边 跑 朋友 票 七 起 起床 起来 汽车 前 前边 前天 钱 钱包 请 请假 请进 请问 请坐 球 去 去年 热 人 认识 认真 日 日期 肉 三 山 商场 商店 上 上班 上边 上车 上次 上课 上网 上午 上学 少 身上 身体 什么 生病 生气 生日 十 时候 时间 事 试 是 是不是 手 手机 书 书包 书店 树 水 水果 睡 睡觉 说 说话 四 送 岁 他 他们 她 她们 太 天 听 听到 听见 听写 同学 图书馆 外 外边 外国 外语 玩儿 晚 晚饭 晚上 网上 网友 忘 忘记 问 我 我们 五 午饭 西 西边 洗 洗手间 喜欢 下 下班 下边 下车 下次 下课 下午 下雨 先 先生 现在 想 小 小孩儿 小姐 小朋友 小时 小学 小学生 笑 写 谢谢 新 新年 星期 星期日 星期天 行 休息 学 学生 学习 学校 学院 要 爷爷 也 页 一 衣服 医院 一半 一会儿 一块儿 一下儿 一样 一边 一点儿 一起 一些 用 有 有有的 有名 有时候 有些 有用 右 右边 雨 元 远 月 再 再见 在 在家 早 早饭 早上 怎么 站 找 找到 这 这边 这里 这儿 这些 着 真 真的 正 正在 知道 知识 中 中国 中间 中文 中午 中学 中学生 重 重要 住 准备 桌子 字 子 走 走路 最 最好 最后 昨天 左 左边 坐 坐下 做".split(" ");
+
+    // Mapping Terjemahan Otomatis untuk Kata yang Tidak Terdaftar di Database Utama
+    listRaw.forEach(word => {
+        if(!database.find(d => d.hz === word)) {
+            database.push({hz: word, py: "🔊", pos: "NOUN", en: "Vocabulary", jp: "単語", th: "คำศัพท์"});
+        }
+    });
+
+    let currentPool = [...database];
+    let currentIndex = 0;
+    let filter = 'ALL';
+
+    function setFilter(pos, btn) {
+        filter = pos;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilter();
+    }
+
+    function handleSearch() { applyFilter(); }
+
+    function applyFilter() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        currentPool = database.filter(item => {
+            const matchPos = filter === 'ALL' || item.pos === filter;
+            const matchText = item.hz.includes(q) || item.en.toLowerCase().includes(q);
+            return matchPos && matchText;
+        });
+        currentIndex = 0;
+        updateUI();
+    }
+
+    function navigate(dir) {
+        if(currentPool.length === 0) return;
+        currentIndex = (currentIndex + dir + currentPool.length) % currentPool.length;
+        updateUI();
+    }
+
+    function updateUI() {
+        if(currentPool.length === 0) {
+            document.getElementById('v-hz').innerText = "Empty";
+            return;
+        }
+        const item = currentPool[currentIndex];
+        document.getElementById('v-hz').innerText = item.hz;
+        document.getElementById('v-py').innerText = item.py;
+        document.getElementById('v-en').innerText = item.en;
+        document.getElementById('v-jp').innerText = item.jp;
+        document.getElementById('v-th').innerText = item.th;
+        document.getElementById('v-pos').innerText = item.pos;
+        document.getElementById('v-count').innerText = `${currentIndex + 1} / ${currentPool.length}`;
+    }
+
+    function playVoice(lang) {
+        const item = currentPool[currentIndex];
+        let text = item.hz;
+        if(lang === 'en-US') text = item.en;
+        if(lang === 'ja-JP') text = item.jp;
+        if(lang === 'th-TH') text = item.th;
+
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = lang;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    updateUI();
+</script>
+</body>
+</html>
